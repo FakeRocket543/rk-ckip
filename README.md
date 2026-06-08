@@ -1,4 +1,4 @@
-# RK-CLIP — CKIP BERT ONNX on RK3588S
+# RK-CKIP — CKIP BERT ONNX on RK3588S
 
 CKIP (繁體中文 NLP) ONNX Runtime acceleration benchmark on NanoPi M6 (RK3588S).
 
@@ -19,5 +19,5 @@ CKIP (繁體中文 NLP) ONNX Runtime acceleration benchmark on NanoPi M6 (RK3588
 ## Repo
 
 ```
-https://github.com/FakeRocket543/rk-clip
+https://github.com/FakeRocket543/rk-ckip
 ```
