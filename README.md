@@ -4,14 +4,23 @@ CKIP (繁體中文 NLP) ONNX Runtime acceleration benchmark on NanoPi M6 (RK3588
 
 ## Results
 
-### CPU: PyTorch vs ONNX Runtime
+### CPU: PyTorch vs ONNX FP32 vs ONNX INT8
 
-| Task | PyTorch (ms) | ONNX (ms) | Speedup |
-|------|-------------|-----------|---------|
-| **WS** (斷詞) | 158.3 | 44.8 | **3.53x** |
-| **POS** (詞性) | 155.4 | 48.2 | **3.22x** |
-| **NER** (實體) | 157.2 | 48.7 | **3.23x** |
-| **Total** | 470.9 | 141.7 | **3.32x** |
+| Task | PyTorch (ms) | ONNX FP32 (ms) | ONNX INT8 (ms) | INT8 vs PyTorch |
+|------|-------------|----------------|----------------|-----------------|
+| **WS** (斷詞) | 205 | 47 | **17** | **12.1x** |
+| **POS** (詞性) | 205 | 48 | **17** | **12.1x** |
+| **NER** (實體) | 205 | 49 | **17** | **12.1x** |
+| **Total** | 615 | 144 | **50** | **12.3x** |
+
+| Model size | FP32 | INT8 | Ratio |
+|------------|------|------|-------|
+| per model | 388 MB | 98 MB | 4.0x |
+| ×3 models | 1.16 GB | 0.29 GB | 4.0x |
+
+> **Note**: FP16 is not benchmarked — ARM Cortex-A76/A55 CPU has no FP16 SIMD
+> hardware path, so FP16 inference adds cast overhead with no benefit. INT8
+> dynamic quantization leverages NEON dot-product instructions for real speedup.
 
 ### NPU: RKNN on RK3588S (seq_len=64)
 
@@ -114,23 +123,34 @@ cat input.jsonl | python scripts/ckip_full_pipeline.py --backend onnx --onnx-dir
 
 ### Backend Comparison
 
-| Backend | Speed (sent/s) | Requirements |
-|---------|---------------|--------------|
-| pytorch | ~4 | ckip-transformers, torch |
-| onnx | ~13 | + onnxruntime, exported .onnx |
-| npu | ~18* | + rknn-toolkit-lite2, .rknn, RK3588S |
+| Backend | Speed (sent/s) | Memory | Requirements |
+|---------|---------------|--------|--------------|
+| pytorch | ~5 | 1.8 GB | ckip-transformers, torch |
+| onnx (FP32) | ~21 | 1.8 GB | + onnxruntime |
+| onnx (INT8) | ~60 | 0.5 GB | + onnxruntime (dynamic quantization) |
+| npu | ~18* | 0.6 GB | + rknn-toolkit-lite2, .rknn, RK3588S |
 
 \* NPU requires batch_size=1 and fixed seq_len.
+
+### INT8 Quantization
+
+```bash
+# Quantize FP32 → INT8 (dynamic, weight-only)
+python scripts/bench_quant.py
+# Output: onnx/q8/ckip_bert_{ws,pos,ner}_int8.onnx
+```
 
 ## Repo Structure
 
 ```
 rk-ckip/
 ├── scripts/
-│   ├── ckip_full_pipeline.py # WS+POS+NER full pipeline (generic input)
-│   ├── ckip_npu_ner_pipeline.py  # NER-only NPU pipeline (wowsight.tw specific)
-│   ├── ckip_onnx_bench.py    # PyTorch baseline + ONNX export + CPU ORT benchmark
-│   ├── remove_isnan.py       # Remove IsNaN+Where pattern for RKNN compatibility
+│   ├── ckip_api.py           # FastAPI server: /ws /pos /ner /pipeline (ONNX)
+│   ├── ckip_full_pipeline.py # WS+POS+NER CLI pipeline (pytorch/onnx/npu)
+│   ├── ckip_npu_ner_pipeline.py  # NER-only NPU pipeline (wowsight.tw)
+│   ├── ckip_onnx_bench.py    # PyTorch baseline + ONNX export + benchmark
+│   ├── bench_quant.py        # INT8 quantization + FP32 vs INT8 benchmark
+│   ├── remove_isnan.py       # Remove IsNaN+Where for RKNN compatibility
 │   └── convert_rknn.py       # ONNX → RKNN conversion + NPU benchmark
 ├── benchmarks/                # Benchmark result JSONs
 └── README.md

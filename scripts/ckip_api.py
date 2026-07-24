@@ -30,7 +30,8 @@ from typing import Optional
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger("ckip-api")
 
-ONNX_DIR = os.environ.get("ONNX_DIR", "/mnt/nvme/rk-ckip/onnx")
+ONNX_DIR = os.environ.get("ONNX_DIR", "/mnt/nvme/rk-ckip/onnx/q8")
+ONNX_SUFFIX = os.environ.get("ONNX_SUFFIX", "_int8.onnx")
 ORT_THREADS = int(os.environ.get("ORT_THREADS", "4"))
 PORT = int(os.environ.get("PORT", "8900"))
 
@@ -90,7 +91,7 @@ def load():
     m.ner = CkipNerChunker(model="bert-base", device=-1)
 
     for label, driver in [("ws", m.ws), ("pos", m.pos), ("ner", m.ner)]:
-        path = os.path.join(ONNX_DIR, f"ckip_bert_{label}.onnx")
+        path = os.path.join(ONNX_DIR, f"ckip_bert_{label}{ONNX_SUFFIX}")
         assert os.path.exists(path), f"ONNX not found: {path}"
         _patch_onnx(driver, path)
 
@@ -124,7 +125,7 @@ class PipelineRequest(TextRequest):
 def health():
     if "m" not in _models:
         return {"status": "loading"}
-    return {"status": "ok", "backend": "onnx", "threads": ORT_THREADS}
+    return {"status": "ok", "backend": "onnx-int8", "threads": ORT_THREADS}
 
 
 @app.post("/ws")
