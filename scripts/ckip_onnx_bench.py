@@ -62,7 +62,6 @@ def export_bert_onnx(model, name, tokenizer):
         },
         opset_version=17,
         do_constant_folding=True,
-        dynamo=False,
     )
     sz = os.path.getsize(path) / 1024 / 1024
     print(f"  {name}: {sz:.1f} MB ✓")
